@@ -3,47 +3,54 @@ from Adafruit_BME280 import *
 import Adafruit_CharLCD as LCD
 import argparse
 
-sensor = BME280(mode=BME280_OSAMPLE_8)
-lcd = LCD.Adafruit_CharLCDPlate()
+class Weather(object):
+    def __init__(self, debug=False):
+        self.sensor = BME280(mode=BME280_OSAMPLE_8)
+        self.lcd = LCD.Adafruit_CharLCDPlate()
+        self.debug = debug
 
-def start(debug=False): 
-    lcd.clear()
-    lcd.set_color(1.0, 0.0, 0.0)
+    def read_sensor(self):
+        self.temp = self.sensor.read_temperature() * 1.8 + 32
+        self.pressure = self.sensor.read_pressure() / 100
+        self.humidity = self.sensor.read_humidity()
 
-    button = True
-    backlight = True
+    def update_lcd(self):
+        msg = "Temp = {0:0.3f}\nHumidity = {1:0.2f} %".format(self.temp, self.humidity)
+        self.lcd.set_cursor(0,0)
+        self.lcd.message(msg)
 
-    while(True): 
-        degrees = sensor.read_temperature() * 1.8 + 32
-        pascals = sensor.read_pressure()
-        hectopascals = pascals / 100
-        humidity = sensor.read_humidity()
-
-        msg = "Temp = {0:0.3f}\nHumidity = {1:0.2f} %".format(
-            degrees, humidity)
-        lcd.set_cursor(0,0)
-        lcd.message(msg)
-
-        if debug:
-            print msg
-            print 'Timestamp = {0:0.3f}'.format(sensor.t_fine)
-            print 'Temp      = {0:0.3f} deg C'.format(degrees)
-            print 'Pressure  = {0:0.2f} hPa'.format(hectopascals)
-            print 'Humidity  = {0:0.2f} %'.format(humidity)
-
-        if lcd.is_pressed(LCD.SELECT):
-            if button:
-                backlight = not backlight
-                if backlight:
-                    lcd.set_color(1.0, 0.0, 0.0)
+    def check_button(self):
+        if self.lcd.is_pressed(LCD.SELECT):
+            if self.button:
+                self.backlight = not self.backlight
+                if self.backlight:
+                    self.lcd.set_color(1.0, 0.0, 0.0)
                 else:
-                    lcd.set_backlight(0)
-            button = False
+                    self.lcd.set_backlight(0)
+            self.button = False
         else:
-            button = True
+            self.button = True
 
-        time.sleep(1)
+    def start(self, debug=False): 
+        try:
+            self.lcd.clear()
+            self.lcd.set_color(1.0, 0.0, 0.0)
 
+            self.button = True
+            self.backlight = True
+
+            while(True): 
+                self.read_sensor()
+                self.update_lcd()
+                self.check_button()
+                time.sleep(1)
+
+        except KeyboardInterrupt:
+            pass
+
+    def stop(self):
+        self.lcd.clear()
+        self.lcd.set_backlight(0)
 
 def parseArgs():
     parser = argparse.ArgumentParser()
@@ -52,5 +59,6 @@ def parseArgs():
 
 if __name__ == "__main__":
     args = parseArgs()
-    start(debug=args.debug)
-
+    weather = Weather(debug=args.debug)
+    weather.start()
+    weather.stop()
