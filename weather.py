@@ -3,12 +3,15 @@ from Adafruit_BME280 import *
 import Adafruit_CharLCD as LCD
 import argparse
 
-def start(debug=False): 
-    sensor = BME280(mode=BME280_OSAMPLE_8)
-    lcd = LCD.Adafruit_CharLCDPlate()
+sensor = BME280(mode=BME280_OSAMPLE_8)
+lcd = LCD.Adafruit_CharLCDPlate()
 
+def start(debug=False): 
     lcd.clear()
     lcd.set_color(1.0, 0.0, 0.0)
+
+    button = True
+    backlight = True
 
     while(True): 
         degrees = sensor.read_temperature() * 1.8 + 32
@@ -28,11 +31,19 @@ def start(debug=False):
             print 'Pressure  = {0:0.2f} hPa'.format(hectopascals)
             print 'Humidity  = {0:0.2f} %'.format(humidity)
 
-        try:
-            time.sleep(1)
-        except:
-            lcd.clear()
-            break
+        if lcd.is_pressed(LCD.SELECT):
+            if button:
+                backlight = not backlight
+                if backlight:
+                    lcd.set_color(1.0, 0.0, 0.0)
+                else:
+                    lcd.set_backlight(0)
+            button = False
+        else:
+            button = True
+
+        time.sleep(1)
+
 
 def parseArgs():
     parser = argparse.ArgumentParser()
