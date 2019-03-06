@@ -1,45 +1,49 @@
 import time
-from Adafruit_BME280 import *
-import Adafruit_CharLCD as LCD
 import argparse
+import board
+import busio
+import adafruit_bme280
+import adafruit_character_lcd.character_lcd_rgb_i2c as character_lcd
 
 class Weather(object):
     def __init__(self, debug=False):
-        self.sensor = BME280(mode=BME280_OSAMPLE_8)
-        self.lcd = LCD.Adafruit_CharLCDPlate()
+        i2c = busio.I2C(board.SCL, board.SDA)
+        self.sensor = adafruit_bme280.Adafruit_BME280_I2C(i2c, address=0x76)
+        self.lcd = character_lcd.Character_LCD_RGB_I2C(i2c, 16, 2)
         self.debug = debug
+        self.backlight = True
+        self.button = True
 
     def read_sensor(self):
-        self.temp = self.sensor.read_temperature() * 1.8 + 32
-        self.pressure = self.sensor.read_pressure() / 100
-        self.humidity = self.sensor.read_humidity()
+        self.temp = self.sensor.temperature *1.8 + 32
+        self.pressure = self.sensor.pressure
+        self.humidity = self.sensor.humidity
 
     def update_lcd(self):
         msg = "Temp = {0:0.3f}\nHumidity = {1:0.2f} %".format(self.temp, self.humidity)
-        self.lcd.set_cursor(0,0)
-        self.lcd.message(msg)
+        self.lcd.message = msg
 
     def check_button(self):
-        if self.lcd.is_pressed(LCD.SELECT):
+        if self.lcd.select_button:
             if self.button:
                 self.backlight = not self.backlight
                 if self.backlight:
-                    self.lcd.set_color(1.0, 0.0, 0.0)
+                    self.lcd.color = [100, 0, 0]
                 else:
-                    self.lcd.set_backlight(0)
+                    self.lcd.backlight = False
             self.button = False
         else:
             self.button = True
 
-    def start(self, debug=False): 
+    def start(self, debug=False):
         try:
             self.lcd.clear()
-            self.lcd.set_color(1.0, 0.0, 0.0)
+            self.lcd.color = [100, 0, 0]
 
             self.button = True
             self.backlight = True
 
-            while(True): 
+            while True:
                 self.read_sensor()
                 self.update_lcd()
                 self.check_button()
@@ -50,7 +54,7 @@ class Weather(object):
 
     def stop(self):
         self.lcd.clear()
-        self.lcd.set_backlight(0)
+        self.lcd.backlight = False
 
 def parseArgs():
     parser = argparse.ArgumentParser()

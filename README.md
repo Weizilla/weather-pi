@@ -1,8 +1,9 @@
 # weather-pi
 Raspberry Pi Weather Station with Clock LCD Display
 
+Uses Python3 + [Adafruit Circuit Python](https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi)
+
 ## Installation
 
-Install:
-1. https://github.com/adafruit/Adafruit_Python_BME280
-2. https://github.com/adafruit/Adafruit_Python_CharLCD
+1. `pip3 install -r requirements.txt`
+
