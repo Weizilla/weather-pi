@@ -1,54 +1,41 @@
-import time
 import argparse
-import board
-import busio
-import adafruit_bme280
-import adafruit_character_lcd.character_lcd_rgb_i2c as character_lcd
+import time
+from decimal import Decimal
+
+import boto3
+from adafruit_bme280 import Adafruit_BME280_I2C
+from adafruit_character_lcd.character_lcd_rgb_i2c import Character_LCD_RGB_I2C
+from board import SCL
+from board import SDA
+from busio import I2C
+
+
+READING_PERIOD_SEC = 60 * 5
+
 
 class Weather(object):
-    def __init__(self, debug=False):
-        i2c = busio.I2C(board.SCL, board.SDA)
-        self.sensor = adafruit_bme280.Adafruit_BME280_I2C(i2c, address=0x76)
-        self.lcd = character_lcd.Character_LCD_RGB_I2C(i2c, 16, 2)
-        self.debug = debug
-        self.backlight = True
-        self.button = True
+    def __init__(self, location):
+        i2c = I2C(SCL, SDA)
+        self.sensor = Adafruit_BME280_I2C(i2c, address=0x76)
+        self.lcd = Character_LCD_RGB_I2C(i2c, 16, 2)
+        self.location = location
+        self.temperature = None
+        self.pressure = None
+        self.humidity = None
+        dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
+        self.table = dynamodb.Table("weather")
 
-    def read_sensor(self):
-        self.temp = self.sensor.temperature *1.8 + 32
-        self.pressure = self.sensor.pressure
-        self.humidity = self.sensor.humidity
-
-    def update_lcd(self):
-        msg = "Temp = {0:0.3f}\nHumidity = {1:0.2f} %".format(self.temp, self.humidity)
-        self.lcd.message = msg
-
-    def check_button(self):
-        if self.lcd.select_button:
-            if self.button:
-                self.backlight = not self.backlight
-                if self.backlight:
-                    self.lcd.color = [100, 0, 0]
-                else:
-                    self.lcd.backlight = False
-            self.button = False
-        else:
-            self.button = True
-
-    def start(self, debug=False):
+    def start(self):
         try:
             self.lcd.clear()
             self.lcd.color = [100, 0, 0]
-
-            self.button = True
-            self.backlight = True
+            self.lcd.backlight = True
 
             while True:
-                self.read_sensor()
-                self.update_lcd()
-                self.check_button()
-                time.sleep(1)
-
+                self._read_sensor()
+                self._update_lcd()
+                self._record_reading()
+                time.sleep(READING_PERIOD_SEC)
         except KeyboardInterrupt:
             pass
 
@@ -56,13 +43,44 @@ class Weather(object):
         self.lcd.clear()
         self.lcd.backlight = False
 
-def parseArgs():
+    def _read_sensor(self):
+        self.temperature = self.sensor.temperature
+        self.pressure = self.sensor.pressure
+        self.humidity = self.sensor.humidity
+
+    def _update_lcd(self):
+        temp_f = self.temperature * 1.8 + 32
+        msg = "Temp = {0:0.3f}\nHumidity = {1:0.2f} %".format(temp_f, self.humidity)
+        self.lcd.message = msg
+
+    def _record_reading(self):
+        epoch = int(time.time())
+        item = {
+            "reading_date": time.strftime("%Y-%m-%d", time.gmtime(epoch)),
+            "location_time": "{l}-{e}".format(l=self.location, e=epoch),
+            "time_location": "{e}-{l}".format(l=self.location, e=epoch),
+        }
+
+        if self.temperature:
+            item["temperature"] = Decimal(str(self.temperature))
+
+        if self.humidity:
+            item["humidity"] = Decimal(str(self.humidity))
+
+        if self.pressure:
+            item["pressure"] = Decimal(str(self.pressure))
+
+        self.table.put_item(Item=item)
+
+
+def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--debug", action="store_true")
+    parser.add_argument("location", help="name of location")
     return parser.parse_args()
 
+
 if __name__ == "__main__":
-    args = parseArgs()
-    weather = Weather(debug=args.debug)
+    args = parse_args()
+    weather = Weather(location=args.location)
     weather.start()
     weather.stop()
