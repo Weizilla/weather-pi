@@ -57,6 +57,8 @@ class Weather(object):
         epoch = int(time.time())
         item = {
             "reading_date": time.strftime("%Y-%m-%d", time.gmtime(epoch)),
+            "reading_time": epoch,
+            "location": self.location,
             "location_time": "{l}-{e}".format(l=self.location, e=epoch),
             "time_location": "{e}-{l}".format(l=self.location, e=epoch),
         }
