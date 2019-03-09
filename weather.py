@@ -2,6 +2,7 @@ import argparse
 import time
 from decimal import Decimal
 
+from boto3.session import Session
 import boto3
 from adafruit_bme280 import Adafruit_BME280_I2C
 from adafruit_character_lcd.character_lcd_rgb_i2c import Character_LCD_RGB_I2C
@@ -26,7 +27,8 @@ class Weather(object):
         self.pressure = None
         self.humidity = None
 
-        dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
+        session = Session(profile_name="weather")
+        dynamodb = session.resource("dynamodb", region_name="us-east-1")
         self.table = dynamodb.Table(DYNAMODB_TABLE)
         self.es = Elasticsearch(hosts=[ES_HOST])
 
